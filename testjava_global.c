@@ -113,11 +113,11 @@ int call_function(const char* function_name, const char* sign) {
 	// 调用add函数
 	
 	jmethodID mid;
-	mid = (*env)->GetStaticMethodID(env, cls, "add", "(II)");
+	mid = (*env)->GetStaticMethodID(env, cls, "add", "(Ljava/lang/String)I");
 	if(mid !=0){
 		jint square;
 		
-		 (*env)->CallStaticVoidMethod (env, cls, mid, 123,2);
+		 (*env)->CallStaticIntMethod (env, cls, mid, 123,2);
 		//printf(" square is %d\n", square);
 	} else {
 		//todo 记日志

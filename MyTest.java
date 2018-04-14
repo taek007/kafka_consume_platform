@@ -13,10 +13,10 @@ public static void main(String[] args){
 		start("abc");
 }
 */
-public static void add(int a,int b) {
+public static int add(String msg) {
 	//start("cc");
-	System.out.println( a+b);
-	return;
+	System.out.println(msg);
+	return 0;
 }
 
 
