@@ -8,10 +8,15 @@
  g++ -o testjava testjava.cpp -I${JAVA_HOME}/include -I${JAVA_HOME}/include/linux -L${JRE_HOME}/lib/i386/client -L/usr/lib/jvm/java-1.8.0-openjdk-1.8.0.151-1.b12.el6_9.x86_64/jre/lib/amd64/server   -ljvm	 -Wl,-rpath,/usr/lib/jvm/java-1.8.0-openjdk-1.8.0.151-1.b12.el6_9.x86_64/jre/lib/amd64/server
 
 
- gcc -o testjavac testjava.c -I${JAVA_HOME}/include -I${JAVA_HOME}/include/linux -L${JRE_HOME}/lib/i386/client -L/usr/lib/jvm/java-1.8.0-openjdk-1.8.0.151-1.b12.el6_9.x86_64/jre/lib/amd64/server   -ljvm	 -Wl,-rpath,/usr/lib/jvm/java-1.8.0-openjdk-1.8.0.151-1.b12.el6_9.x86_64/jre/lib/amd64/server
+ gcc -o testjavac_global testjava_global.c -I${JAVA_HOME}/include -I${JAVA_HOME}/include/linux -L${JRE_HOME}/lib/i386/client -L/usr/lib/jvm/java-1.8.0-openjdk-1.8.0.151-1.b12.el6_9.x86_64/jre/lib/amd64/server   -ljvm	 -Wl,-rpath,/usr/lib/jvm/java-1.8.0-openjdk-1.8.0.151-1.b12.el6_9.x86_64/jre/lib/amd64/server
 
  */
 
+
+JavaVM *jvm;
+JNIEnv *env;
+jobject jobj;
+jclass cls;
 
 jstring stoJstring(JNIEnv* env, const char* pat)
 {
@@ -44,7 +49,7 @@ char* jstringTostring(JNIEnv* env, jstring jstr) {
 	return rtn;
 }
 
-jint create_vm(JavaVM** jvm, JNIEnv** env) {  
+jint create_vm() {  
 	JavaVMInitArgs vm_args;
 	JavaVMOption options[2];
 	
@@ -66,21 +71,21 @@ jint create_vm(JavaVM** jvm, JNIEnv** env) {
 	 vm_args.options = options;
 	 vm_args.ignoreUnrecognized = JNI_TRUE;
 
-	return JNI_CreateJavaVM(jvm, (void**)env, &vm_args);
+	return JNI_CreateJavaVM(&jvm, (void**)&env, &vm_args);
 }
 
-jclass find_class(JNIEnv* env, const char* class_name) {
-	jclass cls;
+void find_class(const char* class_name, int type) {
+	//jclass cls;
 	jmethodID mid;
-	jobject jobj;
+	//jobject jobj;
 
 	cls = (*env)->FindClass(env, "com/test/MyTest");  // 在这里查找ava类
-	if(cls !=0){
+	if(cls !=0) {
 		printf("find java class success\n");
 		// 构造函数
 		mid = (*env)->GetMethodID(env, cls,"<init>","()V");
 		if(mid !=0) {
-			jobj=(*env)->NewObject(env, cls,mid);
+			//jobj=(*env)->NewObject(env, cls,mid);
 			printf("init ok\n");
 		}
 	   
@@ -89,52 +94,77 @@ jclass find_class(JNIEnv* env, const char* class_name) {
 	   if (version == JNI_VERSION_1_8 ) {
 			printf("version is JNI_VERSION_1_8\n");
 	   }
-	   return cls;
+
+	   if(type == 1) {
+			jmethodID mid;
+			mid = (*env)->GetMethodID(env, cls,"<init>","()V");
+			if(mid !=0) {
+				jobj=(*env)->NewObject(env, cls,mid);
+				printf("init ok\n");
+			}
+	   }
+	   //return cls;
+	} else{
+		printf("not find java class \n");
 	}
 }
 
-
-int call_function(JNIEnv** env, jclass cls, const char* function_name) {
-
+int call_function(const char* function_name, const char* sign) {
 	// 调用add函数
+	
 	jmethodID mid;
-
-	mid = (*env)->GetStaticMethodID(env, cls, "add", "(II)I");
-
+	mid = (*env)->GetStaticMethodID(env, cls, "add", "(Ljava/lang/String)I");
 	if(mid !=0){
 		jint square;
-		square = (*env)->CallStaticIntMethod(env, cls, mid, 5,5);
-		printf(" square is %d\n", square);
 		
+		 (*env)->CallStaticIntMethod (env, cls, mid, 123,2);
+		//printf(" square is %d\n", square);
+	} else {
+		//todo 记日志
+		printf(" square is \n");
 	}
 }
 
-int destroy_vm(JavaVM* jvm) {
+void call_non_static_function(const char* function_name, const char* sign) {
+	jmethodID mid;
+	mid = (*env)->GetMethodID(env, cls, function_name, sign);
+	if(mid !=0){
+		jboolean jnot;
+		(*env)->CallBooleanMethod(env, jobj, mid, 1);
+		//printf(" judge is %d\n", jnot);
+	} else {
+		//todo 记日志
+	}
+	return;
+}
+
+
+int destroy_vm() {
 	return (*jvm)->DestroyJavaVM(jvm);
 }
 
-int main() {
-	JavaVM *jvm;
-	JNIEnv *env;
-	
 
-	
-	
+
+
+int main() {
 	
 	jboolean jnot;
 	jobject jobj;
-jmethodID mid;
+	jmethodID mid;
 	long status = create_vm(&jvm, &env);
 	if(status == JNI_ERR){
 		printf("create java jvm fail\n");
 		return -1;
 	}
 
-		{
-		printf("create java jvm success\n");
-		jclass cls =find_class(env, "com/test/MyTest");
+	printf("create java jvm success\n");
+	find_class("com/test/MyTest", 1);
+		int cnt = 10;
+	
 		//jclass cls = (*env)->FindClass(env, "com/test/MyTest");  // 在这里查找ava类
-		if(cls !=0){
+		
+			while(cnt > 0){
+				cnt--;
 			/*
 			printf("find java class success\n");
 			// 构造函数
@@ -152,7 +182,11 @@ jmethodID mid;
 		   */
   
 			
-		call_function(env, cls, "add");
+		//call_non_static_function("start", "(Z)Z");
+		//call_function("add", "(II)I");
+//call_function("start", "Ljava/lang/String");
+call_function("start", "(Ljava/lang/String;)");
+		sleep(1);
 
 			/*
 			// 调用judge函数
@@ -164,14 +198,12 @@ jmethodID mid;
 				}
 			}
 			*/
-		} else {
-			fprintf(stderr, "FindClass failed\n");
-		}
+		} 
 	 
-		(*jvm)->DestroyJavaVM(jvm);
+		destroy_vm();
 		fprintf(stdout, "Java VM destory.\n");
 
 		return 0;
-	}   
+	
 
 }
