@@ -92,7 +92,7 @@ jclass find_class(JNIEnv* env, const char* class_name) {
 	   return cls;
 	}
 }
-/*
+
 int call_function(JNIEnv** env, jclass cls, const char* function_name) {
 	// 调用add函数
 	jmethodID mid;
@@ -104,7 +104,7 @@ int call_function(JNIEnv** env, jclass cls, const char* function_name) {
 		
 	}
 }
-*/
+
 int destroy_vm(JavaVM* jvm) {
 	return (*jvm)->DestroyJavaVM(jvm);
 }

@@ -57,7 +57,15 @@ gcc  -g  -o test rdkafka_performance.c   -I/home/source/librdkafka/examples/incl
 gcc  -g  -o kafka_php  ./src/rdkafka_performance.c   -I/home/source/librdkafka/examples/include/librdkafka  -L/home/source/librdkafka/examples/lib  -lrdkafka -lz -lpthread -lrt -lm  `pkg-config --cflags --libs glib-2.0`    -L./lib -lc_php -Wl,-rpath,./lib
 
 
+
+
 ./kafka_php  -C -t heartbeat_created -b 10.99.2.3:9092 -p 0 -o begin  -F /home/source/librdkafka/examples/new.php -Z /home/source/librdkafka/examples/conf/zlog.conf
+
+
+
+./kafka_php  -C -t heartbeat_created -b 10.99.2.3:9092 -p 0 -o begin  -F /home/project/kafka_consume_platform/new.php -Z /home/project/kafka_consume_platform/conf/zlog.conf
+
+
 
 */
 
@@ -336,6 +344,36 @@ int class_call_user_method2(uint32_t params_count, zval params[]){
 
 
 static void msg_consume (rd_kafka_message_t *rkmessage, void *opaque) {
+	/*
+	va_list args;
+	int select;
+	if(!strcmp(type, "php")) {
+		select = 1;
+	} else if(!strcmp(type, "java")) {
+		select = 2;
+	} else if(!strcmp(type, "python")) {
+		select = 3;
+	} else if(!strcmp(type, "lua")) {
+		select = 4;
+	}
+	va_start(args, opaque);
+	zend_class_entry *child_ce = NULL;
+	zval* obj  = NULL;
+	zval* function_name=NULL;
+	switch(select){
+		case 1:
+		i=va_arg(args, zend_class_entry*);
+		c=va_arg(args,int);
+		printf("test:i=%d,c=%d\n",i,c);
+		break;
+		case 2:
+		i=va_arg(args,int);
+		d=va_arg(args,char*);
+		printf("test:i=%d,c=%s\n",i,d);
+		break;
+	}
+	va_end(args);
+	*/
 
 	if (rkmessage->err) {
 		
@@ -1602,6 +1640,7 @@ int main (int argc, char **argv) {
 				}
 			} else {
 				/* Queue mode */
+
 				r = rd_kafka_consume_callback_queue(rkqu, 1000,
 							msg_consume,
 							NULL);

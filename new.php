@@ -15,7 +15,7 @@ class Test{
 */
 
 class consume extends Queue {
-	public unction	start($msg) {
+	public function	start($msg) {
 		echo "recive:\n" . $msg . "\n";
 	}
 }

@@ -57,7 +57,11 @@ gcc  -shared -fPIC -g  -o ../lib/libc_php.so  c_php.c `pkg-config --cflags --lib
 
 gcc  -shared -fPIC -g  -o ./lib/libc_php.so  ./src/c_php.c `pkg-config --cflags --libs glib-2.0`   -I/usr/local/php7.1.5 -I/usr/local/php7.1.5/include/php/  -I/usr/local/php7.1.5/include/php/main    -I/usr/local/php7.1.5/include/php/Zend -I/usr/local/php7.1.5/include/php/TSRM   -L ./lib  -lphp7  -lzlog
 
-gcc -o test  test.c -L../lib -lc_php -Wl,-rpath,../lib
+
+gcc -g  -o ./1  ./src/c_php.c `pkg-config --cflags --libs glib-2.0`   -I/usr/local/php7.1.5 -I/usr/local/php7.1.5/include/php/  -I/usr/local/php7.1.5/include/php/main    -I/usr/local/php7.1.5/include/php/Zend -I/usr/local/php7.1.5/include/php/TSRM   -L ./lib  -lphp7  -lzlog
+
+
+gcc -o test  test.c -L../lib -lc_php  `pkg-config --cflags --libs glib-2.0`   -I/usr/local/php7.1.5 -I/usr/local/php7.1.5/include/php/  -I/usr/local/php7.1.5/include/php/main    -I/usr/local/php7.1.5/include/php/Zend -I/usr/local/php7.1.5/include/php/TSRM  -Wl,-rpath,../lib 
 
 ./test test2.php
 */
@@ -101,8 +105,8 @@ static void execute_function(char* function_name1, zval* msg){
 PHP_MINIT_FUNCTION(queue){  
         zend_class_entry queue;  
         INIT_CLASS_ENTRY(queue, PARENT_CLASS_NAME ,secure_methods);//初始化  
-        secure_ce=zend_register_internal_class_ex(&queue,NULL);  
-        secure_ce->ce_flags=ZEND_ACC_IMPLICIT_PUBLIC;  
+        secure_ce = zend_register_internal_class_ex(&queue,NULL);  
+        secure_ce->ce_flags = ZEND_ACC_IMPLICIT_PUBLIC;  
         return SUCCESS;  
 };  
 
@@ -224,8 +228,32 @@ PHPAPI int php_lint_script(zend_file_handle *file)
 
 */
 
+PHPAPI int php_lint_script2(zend_file_handle *file)
+{
+    zend_op_array *op_array;
+    int retval = FAILURE;
+	
+    zend_try {
+        op_array = zend_compile_file(file, ZEND_INCLUDE);
+        zend_destroy_file_handle(file);
+	
+        if (op_array) {
+			//php_printf("ecccccccccccccccccccccrror\n");
+            destroy_op_array(op_array);
+            efree(op_array);
+            retval = SUCCESS;
+			
+        }    
+    } zend_end_try();
+    if (EG(exception)) {
+        zend_exception_error(EG(exception), E_ERROR);
+		
+    }    
+
+    return retval;
+}
 static void check_php_script( char *script_file) {
-	int exit_status = SUCCESS;
+	int exit_status;
 	zend_file_handle file_handle;
 	
 	int lineno;
@@ -233,7 +261,8 @@ static void check_php_script( char *script_file) {
 			php_printf("error\n");
 		}
 
-	exit_status = php_lint_script(&file_handle);
+	exit_status = php_lint_script2(&file_handle);
+	printf("bbb %d\n", exit_status);
 	if (exit_status!=SUCCESS) {
 		zend_printf("Errors parsing %s\n", file_handle.filename);
 
@@ -246,24 +275,25 @@ static void include_php( char *filename) {
     zend_first_try {
         char *include_script;
         spprintf(&include_script, 0, "include '%s';", filename);
-        if(zend_eval_string(include_script, NULL, filename TSRMLS_CC) != FAILURE) {
-			zend_printf("include  %s error\n", filename);
-		}
+		//int res;
+        zend_eval_string(include_script, NULL, filename TSRMLS_CC);
+		//printf("zazz %d\n", FAILURE);
         efree(include_script);
     } zend_end_try();
-	check_php_script(filename);
+	//check_php_script(filename);
 }
 
-//int class_call_user_method(zval *obj, zval* function_name,  uint32_t params_count, zval params[]){ 
-int class_call_user_method(uint32_t params_count, zval params[]){ 
+int class_call_user_method(zval *obj, zval* function_name,  uint32_t params_count, zval params[]){ 
+	printf("sss %s\n", Z_STRVAL_P(function_name));
 	zval retval;
     HashTable *function_table; 
-
+	/*
     if(obj) { 
                 function_table = &Z_OBJCE_P(obj)->function_table;
         }else{
                 function_table = (CG(function_table));
     }
+	*/
 
     // 对象初始化内容，不能放在这里
     // if(!obj_ce){
@@ -298,9 +328,11 @@ int class_call_user_method(uint32_t params_count, zval params[]){
 		//zend_printf("Success\n");
 	}
 	zval_dtor(&retval);  
+
+
 }
 
-void get_child_class_entry(){
+zend_class_entry* get_child_class_entry(){
 	zend_class_entry *ce = NULL;
 	for (zend_hash_internal_pointer_reset(EG(class_table));
 		zend_hash_has_more_elements(EG(class_table)) == SUCCESS;
@@ -314,8 +346,8 @@ void get_child_class_entry(){
 				char* class_name = ZSTR_VAL(ce->name);
 				//php_printf("\n%d\n",ce->type);
 				//php_printf("%s\n",ZSTR_VAL(ce->name));
-				child_ce = ce;
-				break;
+				//child_ce = ce;
+				return ce;
 				/*
 				zval obj;
 				object_init_ex(&obj, ce);  
@@ -336,16 +368,20 @@ void get_child_class_entry(){
 				*/
 			}
 	}
-	child_ce = ce;
+	return NULL;
 }
 
-void php_embed_start( char *filename_local) {
-	filename = filename_local;
+PHP_VAR* php_embed_start(const char *script_filename, const char* zlog_conf_file) {
+	zend_class_entry *child_ce = NULL;
+	zval* obj = NULL;
+	zval* function_name = NULL;
+	zlog_category_t* z_log = NULL;
 
-	char *array[2] = {"embed7", "/home/python_test/c_php/test2.php"};
+	PHP_VAR* php_var = (PHP_VAR*)malloc(sizeof(PHP_VAR));
+	char *array[2] = {"embed7", (char*)script_filename};
 	php_embed_init(2,  array TSRMLS_C);
 	zend_startup_module(&php_mymod_module_entry);
-	include_php(filename);
+	include_php((char*)script_filename);
 
 	/*
 		zval obj;
@@ -357,50 +393,68 @@ void php_embed_start( char *filename_local) {
 	*/
 	
 	//获取php代码中继承指定父类Secure的子类,赋值到全局变量 zend_class_entry *child_ce; 中
-	get_child_class_entry();
+	child_ce = get_child_class_entry();
 
 	obj = (zval*)emalloc(sizeof(zval)); 
 	object_init_ex(obj, child_ce);  
+	
 
-	function_name = (zval*)emalloc(sizeof(zval)); 
+	function_name = (zval*)malloc(sizeof(zval)); 
 	ZVAL_STRING(function_name, PARENT_FUNCTION_NAME);
+	
+	z_log =  zlog_start(zlog_conf_file);
+
+	php_var->obj = obj;
+	php_var->function_name = function_name;
+	php_var->child_ce = child_ce;
+	php_var->z_log = z_log;
+	
+	return php_var;
+
 }
 
-void call_function(const char* msg){
+int call_function(PHP_VAR* php_var, const char* script_filename, const char* zlog_conf_file, const char* msg){
 	int file_modify_time = 0;
-	file_modify_time = get_file_size_time(filename);
+	file_modify_time = get_file_size_time(script_filename);
 	
 	//文件被修改了
 	if(file_modify_time > last_modify_time ){
 		last_modify_time = file_modify_time;
-		php_embed_end();
-		php_embed_start( filename );
+		printf("aaaa\n");
+		php_embed_end(php_var);
+		return 0;
+		//PHP_VAR* php_var = php_embed_start( script_filename, zlog_conf_file );
 	}
-
 	zval params[1];
 	ZVAL_STRINGL(&params[0], msg, strlen(msg)+1);
 
-	//class_call_user_method(&obj, &function_name, 1,params);
+	
 	zend_try {
-		class_call_user_method(1, params);
+		class_call_user_method(php_var->obj, php_var->function_name, 1, params);
 	}	zend_catch{
-			zend_printf("call_user_function  %serror\n", Z_STRVAL_P(function_name));
+			zend_printf("call_user_function  %serror\n", Z_STRVAL_P(php_var->function_name));
 	}zend_end_try(); 
 
 	zval_dtor(&params[0]); 
+	return 1;
 }
 
-void php_embed_end(){
+void php_embed_end(PHP_VAR* php_var){
 	/*
 	释放全局变量
 	*/
-	if(obj !=NULL){
-		zval_dtor(obj);  
+	if(php_var !=NULL){
+		if(php_var->obj !=NULL){
+			zval_dtor(php_var->obj);  
+		}
+
+		if(php_var->function_name !=NULL){
+			zval_dtor(php_var->function_name);
+		}
+		free(php_var);
 	}
 
-	if(function_name !=NULL){
-		zval_dtor(function_name);
-	}
+	zlog_end();
 
 	php_embed_shutdown(TSRMLS_CC); 
 }
@@ -423,22 +477,25 @@ static int get_file_size_time (const char *filename) {
  
 }
 
-void zlog_start(const char *zlog_filename){
+zlog_category_t* zlog_start(const char *zlog_filename){
 	int rc;
+	zlog_category_t* z_log = NULL;
+
 	rc = zlog_init(zlog_filename);
 	printf("aaa %s\n", zlog_filename);
 	if (rc) {
 		printf("init failed\n");
-		return;
+		return NULL;
 	}
  
 	z_log = zlog_get_category("my_cat");
 	if (!z_log) {
 		printf("get cat fail\n");
 		zlog_fini();
-		return;
+		return NULL;
 	}
 	zlog_info(z_log, "zlog_filename is:%s", zlog_filename);
+	return z_log;
 }
 
 void zlog_end(){
@@ -446,16 +503,42 @@ void zlog_end(){
 }
 
 
-/*
+
 int main(){
-    int argc        = 1;
-    char *argv[2]   = { "embed7", "/home/python_test/c_php/test2.php" };
-    php_embed_start(argc, argv );
-	call_function();
-	php_embed_end();
-   return 0;
+    	//printf("%x\n", abc);
+
+	//int argc        = 1;
+	 char *argv[3]   = { "embed7", "/home/project/kafka_consume_platform/test/test2.php", "/home/project/kafka_consume_platform/conf/zlog.conf" };
+
+	 int i=5;
+
+	int res=0;
+
+	PHP_VAR* php_var = NULL;
+	work:
+		 php_var = php_embed_start( (const char*)argv[1], (const char*)argv[2]);
+		if(restart > 0) {
+			goto con_work;
+		}
+	
+	while(i> 0){
+		i--;
+		con_work:
+		res = call_function(php_var, argv[1], argv[2], "abcww");
+		if(res == 0){
+			printf("change\n");
+			restart++;
+			goto work;
+		}
+		sleep(3);
+	}
+	
+	php_embed_end(php_var);
+    return 0;
 }
-*/
+
+
+
 
 
 
