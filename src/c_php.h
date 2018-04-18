@@ -35,7 +35,7 @@ zend_class_entry *secure_ce;
 char* filename = NULL;
 
 PHP_VAR* php_embed_start(const char *script_filename, const char* zlog_conf_name);
-int call_function(PHP_VAR* php_var, const char* filename, const char* zlog_conf_file, const char* msg);
+int call_function(PHP_VAR* php_var, PHP_VAR** php_var_var, const char* filename, const char* zlog_conf_file, const char* msg);
 int class_call_user_method(zval *obj, zval* function_name,  uint32_t params_count, zval params[]);
 void php_embed_end();
 static int get_file_size_time (const char *filename);

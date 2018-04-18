@@ -413,17 +413,21 @@ PHP_VAR* php_embed_start(const char *script_filename, const char* zlog_conf_file
 
 }
 
-int call_function(PHP_VAR* php_var, const char* script_filename, const char* zlog_conf_file, const char* msg){
+int call_function(PHP_VAR* php_var, PHP_VAR** php_var_var, const char* script_filename, const char* zlog_conf_file, const char* msg){
 	int file_modify_time = 0;
 	file_modify_time = get_file_size_time(script_filename);
-	
+	if(php_var_var != NULL){
+		php_var = *php_var_var ;
+	}
 	//文件被修改了
 	if(file_modify_time > last_modify_time ){
 		last_modify_time = file_modify_time;
 		printf("aaaa\n");
 		php_embed_end(php_var);
-		return 0;
+		//return 0;
 		//PHP_VAR* php_var = php_embed_start( script_filename, zlog_conf_file );
+		*php_var_var = php_embed_start( script_filename, zlog_conf_file );
+		php_var = *php_var_var ;
 	}
 	zval params[1];
 	ZVAL_STRINGL(&params[0], msg, strlen(msg)+1);
@@ -515,22 +519,23 @@ int main(){
 	int res=0;
 
 	PHP_VAR* php_var = NULL;
-	work:
+PHP_VAR* php_var_var = NULL;
+	//work:
 		 php_var = php_embed_start( (const char*)argv[1], (const char*)argv[2]);
 		if(restart > 0) {
-			goto con_work;
+			//goto con_work;
 		}
 	
 	while(i> 0){
 		i--;
-		con_work:
-		res = call_function(php_var, argv[1], argv[2], "abcww");
+	//	con_work:
+		res = call_function(php_var, &php_var_var, argv[1], argv[2], "abcww");
 		if(res == 0){
 			printf("change\n");
 			restart++;
-			goto work;
+			//goto work;
 		}
-		sleep(3);
+		sleep(5);
 	}
 	
 	php_embed_end(php_var);
